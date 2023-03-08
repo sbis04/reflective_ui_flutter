@@ -1,12 +1,30 @@
 import 'dart:ui';
 
+import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:reflective_ui_flutter/page_content.dart';
 
-void main() => runApp(const MyApp());
+late List<CameraDescription> _cameras;
 
-class MyApp extends StatelessWidget {
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  _cameras = await availableCameras();
+  runApp(const MyApp());
+}
+
+class MyApp extends StatefulWidget {
   const MyApp({super.key});
+
+  @override
+  State<MyApp> createState() => _MyAppState();
+}
+
+class _MyAppState extends State<MyApp> {
+  ThemeMode _themeMode = ThemeMode.dark;
+  void changeTheme(ThemeMode themeMode) {
+    setState(() => _themeMode = themeMode);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -14,107 +32,180 @@ class MyApp extends StatelessWidget {
       title: 'Flutter App',
       theme: ThemeData(
         fontFamily: 'Poppins',
+        primaryColor: Colors.white,
+        colorScheme: const ColorScheme.light(
+          brightness: Brightness.light,
+          secondary: Colors.black12,
+        ),
       ),
+      darkTheme: ThemeData(
+        fontFamily: 'Poppins',
+        primaryColor: Colors.black,
+        colorScheme: const ColorScheme.light(
+          brightness: Brightness.dark,
+          secondary: Colors.white12,
+        ),
+      ),
+      themeMode: _themeMode,
       debugShowCheckedModeBanner: false,
-      home: const HomePage(),
+      home: HomePage(
+        updateTheme: () => changeTheme(
+          _themeMode == ThemeMode.dark ? ThemeMode.light : ThemeMode.dark,
+        ),
+      ),
     );
   }
 }
 
-class HomePage extends StatelessWidget {
-  const HomePage({super.key});
+class HomePage extends StatefulWidget {
+  const HomePage({super.key, required this.updateTheme});
+
+  final Function updateTheme;
+
+  @override
+  State<HomePage> createState() => _HomePageState();
+}
+
+class _HomePageState extends State<HomePage> {
+  CameraController? controller;
+
+  void onNewCameraSelected(CameraDescription cameraDescription) async {
+    if (controller != null) {
+      await controller?.dispose();
+    }
+    controller = CameraController(
+      cameraDescription,
+      ResolutionPreset.high,
+      enableAudio: false,
+    );
+
+    // If the controller is updated then update the UI.
+    controller!.addListener(() {
+      if (mounted) setState(() {});
+      if (controller!.value.hasError) {
+        // print('Camera error ${controller.value.errorDescription}');
+      }
+    });
+
+    try {
+      await controller!.initialize();
+    } on CameraException catch (e) {
+      // _showCameraException(e);
+    }
+
+    if (mounted) {
+      setState(() {});
+    }
+  }
+
+  void startCamera() {
+    controller?.initialize().then((_) {
+      if (!mounted) {
+        return;
+      }
+      setState(() {});
+    }).catchError((Object e) {
+      if (e is CameraException) {
+        switch (e.code) {
+          case 'CameraAccessDenied':
+            // Handle access errors here.
+            break;
+          default:
+            // Handle other errors here.
+            break;
+        }
+      }
+    });
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    controller = CameraController(
+      _cameras[0],
+      ResolutionPreset.high,
+      enableAudio: false,
+    );
+    startCamera();
+  }
+
+  @override
+  void dispose() {
+    controller?.dispose();
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    final CameraController? cameraController = controller;
+
+    // App state changed before we got the chance to initialize.
+    if (cameraController == null || !cameraController.value.isInitialized) {
+      return;
+    }
+
+    if (state == AppLifecycleState.inactive) {
+      cameraController.dispose();
+    } else if (state == AppLifecycleState.resumed) {
+      onNewCameraSelected(cameraController.description);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      child: Stack(
-        fit: StackFit.expand,
-        children: [
-          Container(
-            height: double.infinity,
-            width: double.infinity,
-            decoration: const BoxDecoration(
-              image: DecorationImage(
-                image: AssetImage('assets/background_1.jpg'),
-                fit: BoxFit.cover,
-              ),
-            ),
-          ),
-          BackdropFilter(
-            filter: ImageFilter.blur(
-              sigmaX: 4,
-              sigmaY: 4,
-            ),
-            child: Container(
-              color: Colors.transparent,
-            ),
-          ),
-          ColorFiltered(
-            colorFilter: const ColorFilter.mode(
-              Colors.black,
-              BlendMode.srcOut,
-            ), // This one will create the magic
-            child: Stack(
+    SystemChrome.setSystemUIOverlayStyle(SystemUiOverlayStyle(
+      systemNavigationBarColor: Theme.of(context).primaryColor,
+      statusBarColor: Colors.transparent,
+      statusBarIconBrightness: Theme.of(context).brightness == Brightness.dark
+          ? Brightness.light
+          : Brightness.dark,
+    ));
+    return Scaffold(
+      body: controller != null && controller!.value.isInitialized
+          ? Stack(
               fit: StackFit.expand,
               children: [
-                Container(
-                  decoration: const BoxDecoration(
-                    color: Colors.white,
-                    backgroundBlendMode: BlendMode.dstOut,
-                  ), // This one will handle background + difference out
+                CameraPreview(controller!),
+                // Container(
+                //   height: double.infinity,
+                //   width: double.infinity,
+                //   decoration: const BoxDecoration(
+                //     image: DecorationImage(
+                //       image: AssetImage('assets/background_2.jpg'),
+                //       fit: BoxFit.cover,
+                //     ),
+                //   ),
+                // ),
+                BackdropFilter(
+                  filter: ImageFilter.blur(
+                    sigmaX: 4,
+                    sigmaY: 4,
+                  ),
+                  child: Container(
+                    color: Theme.of(context).colorScheme.secondary,
+                  ),
                 ),
-                const PageContent(),
+                ColorFiltered(
+                  colorFilter: ColorFilter.mode(
+                    Theme.of(context).primaryColor,
+                    BlendMode.srcOut,
+                  ), // This one will create the magic
+                  child: Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      Container(
+                        decoration: const BoxDecoration(
+                          color: Colors.white,
+                          backgroundBlendMode: BlendMode.dstOut,
+                        ), // This one will handle background + difference out
+                      ),
+                      PageContent(onThemeToggle: widget.updateTheme),
+                    ],
+                  ),
+                ),
               ],
-            ),
-          ),
-        ],
-      ),
+            )
+          : const Center(child: CircularProgressIndicator()),
     );
   }
-
-  // @override
-  // Widget build(BuildContext context) {
-  //   return Scaffold(
-  //     backgroundColor: Colors.black,
-  //     body: Stack(
-  //       children: [
-  //         Container(
-  //           height: double.infinity,
-  //           width: double.infinity,
-  //           decoration: const BoxDecoration(
-  //             image: DecorationImage(
-  //               image: AssetImage('assets/background.jpg'),
-  //               fit: BoxFit.cover,
-  //             ),
-  //           ),
-  //         ),
-  //         Center(
-  //           child: SizedBox(
-  //             height: 120,
-  //             width: 277,
-  //             child: ShaderMask(
-  //               shaderCallback: (bounds) =>
-  //                   const LinearGradient(colors: [Colors.white, Colors.white])
-  //                       .createShader(bounds),
-  //               blendMode: BlendMode.srcOut,
-  //               child: const Text(
-  //                 'Reflective\nFlutter',
-  //                 style: TextStyle(
-  //                   color: Colors.white,
-  //                   fontWeight: FontWeight.bold,
-  //                   fontSize: 55.0,
-  //                 ),
-  //               ),
-  //             ),
-  //           ),
-  //         ),
-  //         Container(
-  //           height: double.infinity,
-  //           width: double.infinity,
-  //           color: Colors.white,
-  //         )
-  //       ],
-  //     ),
-  //   );
-  // }
 }
