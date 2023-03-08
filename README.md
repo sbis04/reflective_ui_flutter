@@ -2,6 +2,31 @@
 
 Demo Flutter project showcasing the reflective UI implementation.
 
+
+
+## Usage
+
+1. Clone the project:
+
+    ```sh
+    git clone https://github.com/sbis04/reflective_ui_flutter.git
+    ```
+
+2. Get Flutter packages:
+
+    ```sh
+    cd reflective_ui_flutter
+    flutter pub get
+    ```
+
+3. Run the project:
+
+    ```sh
+    flutter run
+    ```
+
+> The app works best on physical Android or iOS device (because it provides access to the back camera).
+
 ## License
 
 Copyright (c) 2023 Souvik Biswas
