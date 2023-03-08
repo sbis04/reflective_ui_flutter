@@ -156,26 +156,18 @@ class _HomePageState extends State<HomePage> {
     SystemChrome.setSystemUIOverlayStyle(SystemUiOverlayStyle(
       systemNavigationBarColor: Theme.of(context).primaryColor,
       statusBarColor: Colors.transparent,
+      statusBarBrightness: Theme.of(context).brightness,
       statusBarIconBrightness: Theme.of(context).brightness == Brightness.dark
           ? Brightness.light
           : Brightness.dark,
     ));
     return Scaffold(
+      backgroundColor: Theme.of(context).primaryColor,
       body: controller != null && controller!.value.isInitialized
           ? Stack(
               fit: StackFit.expand,
               children: [
                 CameraPreview(controller!),
-                // Container(
-                //   height: double.infinity,
-                //   width: double.infinity,
-                //   decoration: const BoxDecoration(
-                //     image: DecorationImage(
-                //       image: AssetImage('assets/background_2.jpg'),
-                //       fit: BoxFit.cover,
-                //     ),
-                //   ),
-                // ),
                 BackdropFilter(
                   filter: ImageFilter.blur(
                     sigmaX: 4,
