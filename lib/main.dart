@@ -1,6 +1,7 @@
 import 'dart:ui';
 
 import 'package:camera/camera.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:reflective_ui_flutter/page_content.dart';
@@ -121,8 +122,12 @@ class _HomePageState extends State<HomePage> {
   @override
   void initState() {
     super.initState();
+    var cameraIndex = 0;
+    if (_cameras.length > 1) {
+      cameraIndex = kIsWeb ? 1 : 0;
+    }
     controller = CameraController(
-      _cameras[0],
+      _cameras[cameraIndex],
       ResolutionPreset.high,
       enableAudio: false,
     );
@@ -181,7 +186,7 @@ class _HomePageState extends State<HomePage> {
                   colorFilter: ColorFilter.mode(
                     Theme.of(context).primaryColor,
                     BlendMode.srcOut,
-                  ), // This one will create the magic
+                  ),
                   child: Stack(
                     fit: StackFit.expand,
                     children: [
@@ -189,7 +194,7 @@ class _HomePageState extends State<HomePage> {
                         decoration: const BoxDecoration(
                           color: Colors.white,
                           backgroundBlendMode: BlendMode.dstOut,
-                        ), // This one will handle background + difference out
+                        ),
                       ),
                       PageContent(onThemeToggle: widget.updateTheme),
                     ],
