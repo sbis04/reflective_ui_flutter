@@ -67,7 +67,7 @@ class HomePage extends StatefulWidget {
   State<HomePage> createState() => _HomePageState();
 }
 
-class _HomePageState extends State<HomePage> {
+class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
   CameraController? controller;
 
   void onNewCameraSelected(CameraDescription cameraDescription) async {
@@ -90,7 +90,7 @@ class _HomePageState extends State<HomePage> {
 
     try {
       await controller!.initialize();
-    } on CameraException catch (e) {
+    } on CameraException {
       // _showCameraException(e);
     }
 
@@ -122,6 +122,9 @@ class _HomePageState extends State<HomePage> {
   @override
   void initState() {
     super.initState();
+    // Observe the app states
+    WidgetsBinding.instance.addObserver(this);
+
     var cameraIndex = 0;
     if (_cameras.length > 1) {
       cameraIndex = kIsWeb ? 1 : 0;
@@ -136,6 +139,9 @@ class _HomePageState extends State<HomePage> {
 
   @override
   void dispose() {
+    // Remove the app states observer
+    WidgetsBinding.instance.removeObserver(this);
+
     controller?.dispose();
     super.dispose();
   }
